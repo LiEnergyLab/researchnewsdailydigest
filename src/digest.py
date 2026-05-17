@@ -113,6 +113,8 @@ def _group_by_source(items: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, An
             label = src.split(":", 1)[1]
         elif src.startswith("Bluesky"):
             label = "Bluesky"
+        elif src.startswith("Author:") or src == "OpenAlex":
+            label = "OpenAlex"
         else:
             label = src
         groups[label].append(it)

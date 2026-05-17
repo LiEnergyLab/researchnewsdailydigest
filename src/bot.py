@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -21,6 +22,16 @@ logging.basicConfig(
     format="%(asctime)s  %(name)-10s  %(levelname)s  %(message)s",
 )
 log = logging.getLogger("bot")
+
+_FUNDING_RE = re.compile(
+    r"\bfund|\bpolic(?:y|ies)?\b|\bgrant\b|\bgovernment\b"
+    r"|\bDOE\b|\bARENA\b|\bARPA\b|\bNSFC\b|\bMoST\b|\bHorizon\b|\bsubsid",
+    re.IGNORECASE,
+)
+
+
+def _is_funding(it: dict) -> bool:
+    return any(_FUNDING_RE.search(it.get(f) or "") for f in ("tag", "source", "title"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -85,6 +96,26 @@ def main(argv: list[str] | None = None) -> int:
     if not survivors:
         log.warning("No items survived the relevance filter — nothing to send.")
         return 0
+
+    # 3a. Guarantee a minimum number of funding/policy items.
+    # If the main filter left us short, pull the best-scoring funding items
+    # from the full scored pool (score >= 2 to avoid truly irrelevant noise).
+    min_funding = cfg["filter"].get("min_funding_items", 5)
+    n_funding = sum(1 for it in survivors if _is_funding(it))
+    if n_funding < min_funding:
+        survivor_urls = {it.get("url", "") for it in survivors}
+        rescue = sorted(
+            [it for it in items
+             if _is_funding(it)
+             and it.get("url", "") not in survivor_urls
+             and it.get("score", 0) >= 2],
+            key=lambda x: x.get("score", 0),
+            reverse=True,
+        )[:min_funding - n_funding]
+        survivors.extend(rescue)
+        if rescue:
+            log.info("Funding quota: added %d item(s) (funding total: %d)",
+                     len(rescue), n_funding + len(rescue))
 
     # 4. Summarize the survivors with the sharper model
     log.info("=== Summarizing ===")
