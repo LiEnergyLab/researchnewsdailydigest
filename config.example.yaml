@@ -1,0 +1,79 @@
+# Copy this file to config.yaml and fill in your own values.
+# config.yaml is gitignored so your private author list and feed URLs stay local.
+# See README for full documentation on each field.
+
+topics:
+- Water electrolysis (alkaline, PEM, AEM, SOEC) for green hydrogen production
+- CO2 electroreduction to fuels and chemicals (CO, formate, ethylene, ethanol, multi-carbon)
+- Fuel cells (PEMFC, SOFC, AEMFC, DMFC) — catalysts, membranes, MEAs, durability
+- Hydrogen production, storage, transport, and economics
+- Electrochemical engineering — flow cells, MEAs, gas diffusion electrodes, scale-up,
+  techno-economics
+- Carbon capture (DAC, point-source, sorbents, MOFs, amines) and electrochemical CO2
+  capture
+- Carbon utilisation — CO2 conversion to value-added chemicals, fuels, polymers, materials
+- Government funding and policy announcements for clean energy (EU Horizon/Innovation
+  Fund, US DOE/ARPA-E, Australia ARENA/ARC, China NSFC/MoST)
+- Industry news on commercial deployment of electrolysers, hydrogen projects, fuel
+  cells, DAC plants, and CO2 utilisation startups
+exclude_topics:
+- Pure battery research with no CO2/electrolysis angle
+- Solar PV cell efficiency without electrolysis coupling
+- Theoretical chemistry with no application to the topics above
+- Generic political news not directly tied to clean energy R&D or deployment
+arxiv:
+  enabled: true
+  categories:
+  - physics.chem-ph
+  - cond-mat.mtrl-sci
+  - physics.app-ph
+  max_results: 60
+  days_back: 7
+openalex:
+  enabled: true
+  search_queries:
+  - CO2 electroreduction
+  - water electrolysis hydrogen
+  - fuel cell catalyst
+  - direct air capture
+  - electrochemical CO2 conversion
+  - anion exchange membrane electrolysis
+  - Energy Environmental Science
+  max_results_per_query: 15
+  days_back: 3
+  authors_days_back: 30
+  max_works_per_author: 8
+  tracked_authors: []
+rss:
+  enabled: true
+  feeds: []
+  max_items_per_feed: 20
+bluesky:
+  enabled: true
+  queries:
+  - CO2 electrolysis
+  - green hydrogen
+  - electrocatalyst
+  - direct air capture
+  - AEM electrolysis
+  - DOE hydrogen funding
+  - ARENA hydrogen
+  - EU Innovation Fund hydrogen
+  - ARPA-E electrolysis
+  - electrolyser deployment
+  - carbon capture startup
+  max_results_per_query: 12
+filter:
+  scorer:
+    provider: deepseek
+    model: deepseek-chat
+  summarizer:
+    provider: deepseek
+    model: deepseek-chat
+  min_relevance_score: 6
+  max_digest_items: 30
+  batch_size: 20
+delivery:
+  email: false
+  telegram: true
+  github_commit: true
