@@ -8,6 +8,15 @@ from collections import defaultdict
 from typing import Any, Dict, List
 
 
+def _sorted_items(items: List[Dict[str, Any]]) -> List[tuple[str, Dict[str, Any]]]:
+    """Return (source_label, item) pairs in impact-sorted order (flat, no grouping)."""
+    return [
+        (source, it)
+        for source, group in _group_by_source(items).items()
+        for it in group
+    ]
+
+
 def build_markdown(items: List[Dict[str, Any]], today: str | None = None) -> str:
     today = today or dt.date.today().isoformat()
     n = len(items)
@@ -17,30 +26,28 @@ def build_markdown(items: List[Dict[str, Any]], today: str | None = None) -> str
         f"_{n} item{'s' if n != 1 else ''} after filtering._",
         "",
     ]
-    for source, group in _group_by_source(items).items():
-        lines.append(f"## {source}")
-        lines.append("")
-        for it in group:
-            title = it.get("title", "(no title)").strip()
-            url = it.get("url", "")
-            authors = it.get("authors", "") or "—"
-            published = it.get("published", "") or ""
-            score = it.get("score", "")
-            tag = it.get("tag", "")
-            summary = (it.get("summary") or "").strip() or (it.get("abstract") or "")[:300]
+    for source, it in _sorted_items(items):
+        title = it.get("title", "(no title)").strip()
+        url = it.get("url", "")
+        authors = it.get("authors", "") or ""
+        published = it.get("published", "") or ""
+        score = it.get("score", "")
+        tag = it.get("tag", "")
+        summary = (it.get("summary") or "").strip() or (it.get("abstract") or "")[:300]
 
-            lines.append(f"### [{title}]({url})" if url else f"### {title}")
-            meta_bits = [f"**Score:** {score}/10"]
-            if tag:
-                meta_bits.append(f"**Tag:** {tag}")
-            if published:
-                meta_bits.append(f"**Published:** {published}")
-            if authors and authors != "—":
-                meta_bits.append(f"**Authors:** {authors}")
-            lines.append(" · ".join(meta_bits))
-            lines.append("")
-            lines.append(summary)
-            lines.append("")
+        lines.append(f"### [{title}]({url})" if url else f"### {title}")
+        meta_bits = [f"**Score:** {score}/10"]
+        if tag:
+            meta_bits.append(f"**Tag:** {tag}")
+        meta_bits.append(f"**Journal:** {source}")
+        if published:
+            meta_bits.append(f"**Published:** {published}")
+        if authors:
+            meta_bits.append(f"**Authors:** {authors}")
+        lines.append(" · ".join(meta_bits))
+        lines.append("")
+        lines.append(summary)
+        lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -52,34 +59,34 @@ def build_html(items: List[Dict[str, Any]], today: str | None = None) -> str:
         f"<h1 style='margin-bottom:0'>Research Digest — {today}</h1>",
         f"<p style='color:#666'>{n} item{'s' if n != 1 else ''} after filtering.</p>",
     ]
-    for source, group in _group_by_source(items).items():
-        parts.append(f"<h2 style='border-bottom:1px solid #eee;padding-bottom:4px'>{html.escape(source)}</h2>")
-        for it in group:
-            title = html.escape(it.get("title", "(no title)").strip())
-            url = html.escape(it.get("url", ""), quote=True)
-            authors = html.escape(it.get("authors", "") or "")
-            published = html.escape(it.get("published", "") or "")
-            score = it.get("score", "")
-            tag = html.escape(it.get("tag", "") or "")
-            summary = html.escape((it.get("summary") or "").strip() or (it.get("abstract") or "")[:300])
+    for source, it in _sorted_items(items):
+        title = html.escape(it.get("title", "(no title)").strip())
+        url = html.escape(it.get("url", ""), quote=True)
+        authors = html.escape(it.get("authors", "") or "")
+        published = html.escape(it.get("published", "") or "")
+        score = it.get("score", "")
+        tag = html.escape(it.get("tag", "") or "")
+        source_esc = html.escape(source)
+        summary = html.escape((it.get("summary") or "").strip() or (it.get("abstract") or "")[:300])
 
-            title_html = f"<a href='{url}' style='color:#0a58ca;text-decoration:none'>{title}</a>" if url else title
-            meta = f"<span style='color:#888;font-size:12px'>Score {score}/10"
-            if tag:
-                meta += f" · {tag}"
-            if published:
-                meta += f" · {published}"
-            if authors:
-                meta += f" · {authors}"
-            meta += "</span>"
+        title_html = f"<a href='{url}' style='color:#0a58ca;text-decoration:none'>{title}</a>" if url else title
+        meta = f"<span style='color:#888;font-size:12px'>Score {score}/10"
+        if tag:
+            meta += f" · {tag}"
+        meta += f" · {source_esc}"
+        if published:
+            meta += f" · {published}"
+        if authors:
+            meta += f" · {authors}"
+        meta += "</span>"
 
-            parts.append(
-                f"<div style='margin:14px 0 18px'>"
-                f"<div style='font-weight:600;font-size:15px'>{title_html}</div>"
-                f"<div>{meta}</div>"
-                f"<div style='margin-top:6px'>{summary}</div>"
-                f"</div>"
-            )
+        parts.append(
+            f"<div style='margin:14px 0 18px'>"
+            f"<div style='font-weight:600;font-size:15px'>{title_html}</div>"
+            f"<div>{meta}</div>"
+            f"<div style='margin-top:6px'>{summary}</div>"
+            f"</div>"
+        )
     parts.append("</body></html>")
     return "".join(parts)
 
@@ -88,14 +95,14 @@ def build_telegram_text(items: List[Dict[str, Any]], today: str | None = None, m
     """Telegram messages are capped at 4096 chars. Keep it compact."""
     today = today or dt.date.today().isoformat()
     lines: List[str] = [f"📚 Research digest — {today}  ({len(items)} items)", ""]
-    for it in items:
+    for source, it in _sorted_items(items):
         title = it.get("title", "(no title)").strip()
         url = it.get("url", "")
         score = it.get("score", "")
         summary = (it.get("summary") or "").strip()
-        block = f"• [{score}/10] {title}\n{url}\n{summary[:240]}".rstrip()
+        block = f"• [{score}/10] {source} — {title}\n{url}\n{summary[:200]}".rstrip()
         if sum(len(x) for x in lines) + len(block) > max_chars:
-            lines.append("…(truncated — see email or repo for full digest)")
+            lines.append("…(truncated — see repo for full digest)")
             break
         lines.append(block)
         lines.append("")
