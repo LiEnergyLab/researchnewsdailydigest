@@ -26,7 +26,9 @@ jobs:
         # config.yaml is gitignored (contains private RSS feeds + tracked authors).
         # Store the base64-encoded file as the CONFIG_YAML repository secret.
         # Generate it locally with:  base64 -i config.yaml | pbcopy
-        run: echo "${{ secrets.CONFIG_YAML }}" | base64 -d > config.yaml
+        env:
+          CONFIG_YAML: ${{ secrets.CONFIG_YAML }}
+        run: echo "$CONFIG_YAML" | base64 -d > config.yaml
 
       - name: Set up Python
         uses: actions/setup-python@v5
