@@ -2,12 +2,12 @@ name: Daily research digest
 
 on:
   schedule:
-    # 07:00 UTC every day. Tweak as needed (cron is UTC).
-    - cron: "0 7 * * *"
-  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+    # 21:00 UTC = 07:00 AEST (UTC+10) — adjust to taste.
+    - cron: "0 21 * * *"
+  workflow_dispatch: {}   # also runnable manually from the Actions tab
 
 permissions:
-  contents: write   # needed to commit the digests/YYYY-MM-DD.md file back
+  contents: write   # needed to push digests/YYYY-MM-DD.md back to the repo
 
 concurrency:
   group: daily-digest
@@ -16,11 +16,17 @@ concurrency:
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Restore private config
+        # config.yaml is gitignored (contains private RSS feeds + tracked authors).
+        # Store the base64-encoded file as the CONFIG_YAML repository secret.
+        # Generate it locally with:  base64 -i config.yaml | pbcopy
+        run: echo "${{ secrets.CONFIG_YAML }}" | base64 -d > config.yaml
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,35 +35,28 @@ jobs:
           cache: pip
 
       - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure git identity
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Run digest bot
         env:
-          # LLM providers — set whichever you use in config.yaml
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DEEPSEEK_API_KEY:  ${{ secrets.DEEPSEEK_API_KEY }}
-          # Email (optional)
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          EMAIL_TO:   ${{ secrets.EMAIL_TO }}
-          # Telegram (optional)
+          DEEPSEEK_API_KEY:   ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENALEX_MAILTO:    ${{ secrets.OPENALEX_MAILTO }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m src.bot
 
-      - name: Commit new digest file
+      - name: Commit digest file (fallback)
+        # delivery.py already commits + pushes the file during the bot run.
+        # This step is a safety net in case that push was skipped or failed.
         run: |
-          set -e
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add digests/
           if git diff --cached --quiet; then
-            echo "No new digest file to commit."
+            echo "Digest already committed by bot — nothing to do."
           else
             git commit -m "digest: $(date -u +%Y-%m-%d)"
             git push

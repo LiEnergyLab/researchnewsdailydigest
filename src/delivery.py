@@ -93,7 +93,14 @@ def write_markdown_file(markdown: str, date: str | None = None) -> Path:
 
 
 def commit_and_push_markdown(path: Path) -> bool:
-    """Stage the digest file, commit, and push to origin/main."""
+    """Stage the digest file, commit, and push to origin/main.
+
+    Skipped inside GitHub Actions — the workflow's own git step handles it there
+    (git identity is already configured by the workflow before the bot runs).
+    """
+    if os.environ.get("GITHUB_ACTIONS"):
+        log.info("[delivery] Actions environment detected — git push delegated to workflow")
+        return True
     cwd = REPO_ROOT
     try:
         subprocess.run(["git", "add", str(path)], cwd=cwd, check=True, capture_output=True)
