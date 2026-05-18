@@ -117,6 +117,27 @@ def main(argv: list[str] | None = None) -> int:
             log.info("Funding quota: added %d item(s) (funding total: %d)",
                      len(rescue), n_funding + len(rescue))
 
+    # 3b. Guarantee a minimum number of RSS journal items.
+    # Journal papers often lack full abstracts in their feeds so the LLM scores
+    # them conservatively; a lower rescue threshold (>= 3) is appropriate because
+    # the curated journal list is itself a relevance signal.
+    min_journal = cfg["filter"].get("min_journal_items", 8)
+    n_journal = sum(1 for it in survivors if it.get("source", "").startswith("RSS:"))
+    if n_journal < min_journal:
+        survivor_urls = {it.get("url", "") for it in survivors}
+        journal_rescue = sorted(
+            [it for it in items
+             if it.get("source", "").startswith("RSS:")
+             and it.get("url", "") not in survivor_urls
+             and it.get("score", 0) >= 3],
+            key=lambda x: x.get("score", 0),
+            reverse=True,
+        )[:min_journal - n_journal]
+        survivors.extend(journal_rescue)
+        if journal_rescue:
+            log.info("Journal quota: added %d item(s) (journal total: %d)",
+                     len(journal_rescue), n_journal + len(journal_rescue))
+
     # 4. Summarize the survivors with the sharper model
     log.info("=== Summarizing ===")
     survivors = llm.summarize_items(survivors, cfg)

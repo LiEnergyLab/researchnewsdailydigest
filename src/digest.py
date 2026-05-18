@@ -102,6 +102,38 @@ def build_telegram_text(items: List[Dict[str, Any]], today: str | None = None, m
     return "\n".join(lines)
 
 
+# Impact ranking for RSS journal sections — lower = shown first.
+# Combines journal impact factor with domain relevance for clean energy / electrochemistry.
+# Add new journals here to control where they appear in the digest.
+_JOURNAL_IMPACT: Dict[str, int] = {
+    # Tier 1 — highest-impact, directly on-domain
+    "Nature Energy": 10,
+    "Joule": 11,
+    # Tier 2 — flagship multidisciplinary
+    "Nature": 20,
+    "Science (current issue)": 21,
+    # Tier 3 — high-impact specialised
+    "Nature Catalysis": 30,
+    "ACS Energy Letters": 31,
+    "Nature Materials": 32,
+    "Advanced Materials": 33,
+    "Nature Nanotechnology": 34,
+    # Tier 4 — strong domain journals
+    "JACS": 40,
+    "ACS Catalysis": 41,
+    "Advanced Functional Materials": 42,
+    "Nature Sustainability": 43,
+    "Nature Chemical Engineering": 44,
+    "Nature Communications": 45,
+    # Tier 5 — funding / policy
+    "Australia – ARENA": 60,
+    # Tier 6 — industry / trade press
+    "Canary Media": 70,
+    "Hydrogen Central": 71,
+    "Electrek": 72,
+}
+
+
 def _group_by_source(items: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
     # Collapse "arXiv:physics.chem-ph" → "arXiv", "RSS:Nature Energy" → "Nature Energy", etc.
     groups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -121,13 +153,13 @@ def _group_by_source(items: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, An
     # Sort items within each group by score desc
     for k in groups:
         groups[k].sort(key=lambda x: x.get("score", 0), reverse=True)
-    # Sort groups: peer-reviewed first, arXiv next, Bluesky last
+    # Sort groups by impact tier; unknown RSS journals land at 100 (before OpenAlex)
     def group_rank(name: str) -> int:
-        if name == "Bluesky":
-            return 9
-        if name == "arXiv":
-            return 5
         if name == "OpenAlex":
-            return 2
-        return 1
+            return 300
+        if name == "arXiv":
+            return 400
+        if name == "Bluesky":
+            return 500
+        return _JOURNAL_IMPACT.get(name, 100)
     return dict(sorted(groups.items(), key=lambda kv: (group_rank(kv[0]), kv[0].lower())))
