@@ -2,8 +2,8 @@ name: Daily research digest
 
 on:
   schedule:
-    # 21:00 UTC = 07:00 AEST (UTC+10) — adjust to taste.
-    - cron: "0 21 * * *"
+    # 22:00 UTC = 08:00 AEST (UTC+10) / 09:00 AEDT (UTC+11).
+    - cron: "0 22 * * *"
   workflow_dispatch: {}   # also runnable manually from the Actions tab
 
 permissions:
