@@ -46,6 +46,7 @@ jobs:
 
       - name: Run digest bot
         env:
+          TZ: Australia/Melbourne
           DEEPSEEK_API_KEY:   ${{ secrets.DEEPSEEK_API_KEY }}
           OPENALEX_MAILTO:    ${{ secrets.OPENALEX_MAILTO }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
